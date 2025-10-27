@@ -24,33 +24,12 @@ function Skeleton() {
     );
 }
 
-function Bar({ value = 0, warn = false, width = 160 }) {
-    const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
-    return (
-        <div style={{ width, height: 8, background:'#e3efe7', borderRadius:999, overflow:'hidden', border:'1px solid rgba(29,43,29,0.10)' }}>
-            <div style={{ width: `${pct}%`, height:'100%', background: warn ? '#c97a7a' : '#4da66f' }} />
-        </div>
-    );
-}
-
-function Chip({ children }) {
-    return (
-        <span style={{
-            display:'inline-flex', alignItems:'center', gap:6, padding:'4px 8px', borderRadius:999,
-            border:'1px solid rgba(29,43,29,0.10)', background:'#f7faf6', color:'#1f2a1f', fontSize:12
-        }}>
-      {children}
-    </span>
-    );
-}
-
-function SectionTitle({ children }) { return <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>{children}</div>; }
-function Row({ children }) { return <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>{children}</div>; }
-
 export default function PostDetail({ postId, onBack }) {
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showNLP, setShowNLP] = useState(false);
+    const [showRaw, setShowRaw] = useState(false);
 
     // Instant paint from history.state if provided
     useEffect(() => {
@@ -62,12 +41,14 @@ export default function PostDetail({ postId, onBack }) {
         if (!postId) return;
         const ctrl = new AbortController();
         setLoading(true); setError('');
+
         axios.get(`http://localhost:5000/api/posts/${postId}`, { signal: ctrl.signal })
             .then(res => setPost(res.data))
             .catch(err => {
                 if (err.name !== 'AbortError' && err.name !== 'CanceledError') setError(err?.response?.data?.message || err?.message || 'Failed to fetch post');
             })
             .finally(() => setLoading(false));
+
         return () => ctrl.abort();
     }, [postId]);
 
@@ -76,36 +57,53 @@ export default function PostDetail({ postId, onBack }) {
         return Array.isArray(m) ? m.slice(0, 4) : [];
     }, [post]);
 
-    // NLP derived bits
     const nlp = post?.nlp || null;
     const sentimentScore = typeof nlp?.sentiment_score === 'number' ? Math.min(1, Math.max(0, nlp.sentiment_score)) : null;
+    const categories = Array.isArray(nlp?.categories) ? nlp.categories : [];
     const keywords = Array.isArray(nlp?.keywords) ? nlp.keywords : [];
     const entities = Array.isArray(nlp?.entities) ? nlp.entities : [];
-    const categories = Array.isArray(nlp?.categories) ? nlp.categories : [];
     const toxicity = (nlp?.toxicity && typeof nlp.toxicity === 'object') ? nlp.toxicity : null;
 
     return (
         <div>
             <style>{`
         .pd-card{ border:1px solid rgba(29,43,29,0.08); border-radius:16px; padding:14px; background: linear-gradient(180deg,#ffffff,#fffdf6); box-shadow:0 10px 30px rgba(41,63,41,0.10); }
+        .pd-badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid rgba(29,43,29,0.10); background:#f7faf6; color:#1f2a1f; font-size:12px; }
         .pd-btn{ height:32px; padding:0 12px; border-radius:10px; border:1px solid rgba(29,43,29,0.12); color:#1f2a1f; background: linear-gradient(135deg,#e9f7ef,#dff3ea); cursor:pointer; }
         .pd-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .pd-media{ display:grid; gap:8px; grid-template-columns:repeat(2, minmax(0,1fr)); margin:10px 0; }
         .pd-media img, .pd-media video{ width:100%; border-radius:10px; border:1px solid rgba(29,43,29,0.10); }
+        .pd-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
         .pd-danger{ color:#7a2b2b; }
+        .bar{ width:140px; height:8px; background:#e3efe7; border-radius:999px; overflow:hidden; border:1px solid rgba(29,43,29,0.10); }
+        .bar-fill{ height:100%; background:#4da66f; }
+        .bar-warn{ background:#c97a7a; }
+        .nlp-grid{ display:grid; gap:10px; }
       `}</style>
 
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+            <div className="pd-actions">
                 <button onClick={onBack} className="pd-btn" aria-label="Back to list">Back</button>
-                <button className="pd-btn" onClick={() => {
-                    setLoading(true); setError('');
-                    const ctrl = new AbortController();
-                    axios.get(`http://localhost:5000/api/posts/${postId}`, { signal: ctrl.signal })
-                        .then(res => setPost(res.data))
-                        .catch(err => { if (err.name !== 'AbortError' && err.name !== 'CanceledError') setError(err?.response?.data?.message || err?.message || 'Failed to fetch post'); })
-                        .finally(() => setLoading(false));
-                }}>Refresh</button>
-                {post?.text && <button className="pd-btn" onClick={() => navigator.clipboard.writeText(post.text)}>Copy text</button>}
+                <button
+                    className="pd-btn"
+                    onClick={() => {
+                        setLoading(true); setError('');
+                        const ctrl = new AbortController();
+                        axios.get(`http://localhost:5000/api/posts/${postId}`, { signal: ctrl.signal })
+                            .then(res => setPost(res.data))
+                            .catch(err => {
+                                if (err.name !== 'AbortError' && err.name !== 'CanceledError') setError(err?.response?.data?.message || err?.message || 'Failed to fetch post');
+                            })
+                            .finally(() => setLoading(false));
+                    }}
+                    aria-label="Refresh"
+                >
+                    Refresh
+                </button>
+                {post?.text && (
+                    <button className="pd-btn" onClick={() => navigator.clipboard.writeText(post.text)} aria-label="Copy text">
+                        Copy text
+                    </button>
+                )}
             </div>
 
             {loading && <Skeleton />}
@@ -114,7 +112,9 @@ export default function PostDetail({ postId, onBack }) {
                 <div className="pd-card pd-danger" role="alert">
                     {error}
                     <div style={{ marginTop:8 }}>
-                        <button className="pd-btn" onClick={() => { setLoading(true); setError(''); setTimeout(()=>setLoading(false), 300); }}>Retry</button>
+                        <button className="pd-btn" onClick={() => { setLoading(true); setError(''); setTimeout(()=>setLoading(false), 300); }}>
+                            Retry
+                        </button>
                     </div>
                 </div>
             )}
@@ -133,8 +133,8 @@ export default function PostDetail({ postId, onBack }) {
                             <div style={{ fontSize:12, color:'#5a6b58' }}>{formatRelative(post.created_at)} {post.created_at && `(${new Date(post.created_at).toLocaleString()})`}</div>
                         </div>
                         <div className="pd-row">
-                            {typeof post.likes === 'number' && <Chip>❤ {post.likes.toLocaleString()}</Chip>}
-                            {typeof post.retweets === 'number' && <Chip>↻ {post.retweets.toLocaleString()}</Chip>}
+                            {typeof post.likes === 'number' && <span className="pd-badge">❤ {post.likes.toLocaleString()}</span>}
+                            {typeof post.retweets === 'number' && <span className="pd-badge">↻ {post.retweets.toLocaleString()}</span>}
                         </div>
                     </header>
 
@@ -151,87 +151,106 @@ export default function PostDetail({ postId, onBack }) {
                     )}
 
                     <section className="pd-row" style={{ marginBottom:10 }}>
-                        <Chip>📍 {post.location_text || 'N/A'}</Chip>
-                        {typeof post.confidence === 'number' && <Chip>✅ Confidence {Math.round(post.confidence*100)}%</Chip>}
+                        <span className="pd-badge">📍 {post.location_text || 'N/A'}</span>
+                        {typeof post.confidence === 'number' && <span className="pd-badge">✅ Confidence {Math.round(post.confidence*100)}%</span>}
                     </section>
 
-                    {/* Visual NLP insights */}
+                    {/* Visual NLP panel */}
                     {nlp && (
                         <section aria-label="NLP analysis" style={{ marginTop: 10 }}>
-                            <div style={{ border:'1px solid rgba(29,43,29,0.10)', borderRadius:12, background:'#f7faf6', padding:'10px' }}>
-                                <div style={{ display:'grid', gap:10 }}>
-                                    {(nlp.sentiment || sentimentScore != null) && (
-                                        <div>
-                                            <SectionTitle>Sentiment</SectionTitle>
-                                            <Row>
-                                                {nlp.sentiment && <Chip>🧭 {String(nlp.sentiment).toUpperCase()}</Chip>}
-                                                {sentimentScore != null && <>
-                                                    <Bar value={sentimentScore} />
+                            <div className="nlp-grid">
+                                {/* Sentiment */}
+                                {(nlp.sentiment || sentimentScore != null) && (
+                                    <div>
+                                        <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>Sentiment</div>
+                                        <div className="pd-row">
+                                            {nlp.sentiment && <span className="pd-badge">🧭 {String(nlp.sentiment).toUpperCase()}</span>}
+                                            {sentimentScore != null && (
+                                                <>
+                                                    <div className="bar"><div className="bar-fill" style={{ width: `${Math.round(sentimentScore*100)}%` }} /></div>
                                                     <span style={{ fontSize:12, color:'#5a6b58' }}>{Math.round(sentimentScore*100)}%</span>
-                                                </>}
-                                            </Row>
+                                                </>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {keywords.length > 0 && (
-                                        <div>
-                                            <SectionTitle>Top keywords</SectionTitle>
-                                            <Row>
-                                                {keywords.slice(0, 12).map((k, i) => <Chip key={i}>🏷 {k}</Chip>)}
-                                            </Row>
+                                {/* Keywords */}
+                                {keywords.length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>Top keywords</div>
+                                        <div className="pd-row">
+                                            {keywords.slice(0, 10).map((k, i) => <span key={i} className="pd-badge">🏷 {k}</span>)}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {entities.length > 0 && (
-                                        <div>
-                                            <SectionTitle>Named entities</SectionTitle>
-                                            <div style={{ display:'grid', gap:6 }}>
-                                                {entities.slice(0, 10).map((e, i) => (
-                                                    <Row key={i}>
-                                                        <Chip>{e.type || 'ENTITY'}</Chip>
-                                                        <span>{e.text}</span>
-                                                        {'score' in e && <Chip>conf {Math.round((e.score ?? 0)*100)}%</Chip>}
-                                                    </Row>
-                                                ))}
-                                            </div>
+                                {/* Entities */}
+                                {entities.length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>Named entities</div>
+                                        <div style={{ display:'grid', gap:6 }}>
+                                            {entities.slice(0, 8).map((e, i) => (
+                                                <div key={i} className="pd-row">
+                                                    <span className="pd-badge">{e.type || 'ENTITY'}</span>
+                                                    <span>{e.text}</span>
+                                                    {'score' in e && <span className="pd-badge">conf {Math.round((e.score ?? 0)*100)}%</span>}
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {categories.length > 0 && (
-                                        <div>
-                                            <SectionTitle>Categories</SectionTitle>
-                                            <div style={{ display:'grid', gap:6 }}>
-                                                {categories.slice(0, 8).map((c, i) => (
-                                                    <Row key={i}>
-                                                        <Chip>{c.name || 'Category'}</Chip>
-                                                        {'score' in c && <>
-                                                            <Bar value={c.score ?? 0} />
-                                                            <span style={{ fontSize:12, color:'#5a6b58' }}>{Math.round((c.score ?? 0)*100)}%</span>
-                                                        </>}
-                                                    </Row>
-                                                ))}
-                                            </div>
+                                {/* Categories */}
+                                {categories.length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>Categories</div>
+                                        <div style={{ display:'grid', gap:6 }}>
+                                            {categories.slice(0, 6).map((c, i) => (
+                                                <div key={i} className="pd-row">
+                                                    <span className="pd-badge">{c.name || 'Category'}</span>
+                                                    {'score' in c && <>
+                                                        <div className="bar"><div className="bar-fill" style={{ width: `${Math.round((c.score ?? 0)*100)}%` }} /></div>
+                                                        <span style={{ fontSize:12, color:'#5a6b58' }}>{Math.round((c.score ?? 0)*100)}%</span>
+                                                    </>}
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {toxicity && (
-                                        <div>
-                                            <SectionTitle>Safety</SectionTitle>
-                                            <div style={{ display:'grid', gap:6 }}>
-                                                {Object.entries(toxicity).slice(0, 8).map(([k, v]) => {
-                                                    const val = Math.min(1, Math.max(0, Number(v) || 0));
-                                                    return (
-                                                        <Row key={k}>
-                                                            <Chip>{k}</Chip>
-                                                            <Bar value={val} warn />
-                                                            <span style={{ fontSize:12, color:'#5a6b58' }}>{Math.round(val*100)}%</span>
-                                                        </Row>
-                                                    );
-                                                })}
-                                            </div>
+                                {/* Safety / Toxicity */}
+                                {toxicity && (
+                                    <div>
+                                        <div style={{ fontSize:12, color:'#5a6b58', marginBottom:4 }}>Safety</div>
+                                        <div style={{ display:'grid', gap:6 }}>
+                                            {Object.entries(toxicity).slice(0, 6).map(([k, v]) => {
+                                                const val = Math.min(1, Math.max(0, Number(v) || 0));
+                                                return (
+                                                    <div key={k} className="pd-row">
+                                                        <span className="pd-badge">{k}</span>
+                                                        <div className="bar">
+                                                            <div className="bar-fill bar-warn" style={{ width: `${Math.round(val*100)}%` }} />
+                                                        </div>
+                                                        <span style={{ fontSize:12, color:'#5a6b58' }}>{Math.round(val*100)}%</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Raw JSON toggle for debugging */}
+                            <div style={{ marginTop:10 }}>
+                                <button className="pd-btn" onClick={() => setShowRaw(r => !r)} aria-expanded={showRaw}>
+                                    {showRaw ? 'Hide raw JSON' : 'Show raw JSON'}
+                                </button>
+                                {showRaw && (
+                                    <pre style={{ background:'#f7faf6', border:'1px solid rgba(29,43,29,0.10)', padding:10, borderRadius:10, whiteSpace:'pre-wrap', marginTop:8 }}>
+                    {JSON.stringify(nlp, null, 2)}
+                  </pre>
+                                )}
                             </div>
                         </section>
                     )}
