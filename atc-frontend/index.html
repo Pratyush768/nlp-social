@@ -1,13 +1,29 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disaster Posts Viewer</title>
+  <!-- Preconnect to API for faster TCP/TLS warmup -->
+  <link rel="preconnect" href="http://localhost:5000" />
+  <style>
+    /* Improve focus visibility globally */
+    :root { scroll-behavior: smooth; }
+    :focus-visible {
+      outline: 2px solid #2f8f5b;
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+    /* Skip link for a11y */
+    .skip-link {
+      position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;
+    }
+    .skip-link:focus { left: 12px; top: 12px; width: auto; height: auto; background: #e9f7ef; padding: 8px 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+<a href="#app-content" class="skip-link">Skip to content</a>
+<div id="root"></div>
+<script type="module" src="/src/main.jsx"></script>
+</body>
 </html>

@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import PostList from './components/PostList';
-import PostDetail from './components/PostDetail';
+import AppShell from './layout/AppShell.jsx';
+import PostList from './components/PostList.jsx';
+import PostDetail from './components/PostDetail.jsx';
 
-function App() {
-  const [selectedPostId, setSelectedPostId] = useState(null);
+export default function App() {
+    const [selectedPostId, setSelectedPostId] = useState(null);
 
-  return (
-    <div className="App" style={{ maxWidth: 800, margin: 'auto', padding: 20 }}>
-      <h1>Disaster Posts Viewer</h1>
-      {selectedPostId ? (
-        <PostDetail postId={selectedPostId} onBack={() => setSelectedPostId(null)} />
-      ) : (
-        <PostList onSelectPost={setSelectedPostId} />
-      )}
-    </div>
-  );
+    return (
+        <AppShell title="Disaster Posts Viewer">
+            {selectedPostId ? (
+                <PostDetail postId={selectedPostId} onBack={() => setSelectedPostId(null)} />
+            ) : (
+                <PostList onSelectPost={setSelectedPostId} />
+            )}
+        </AppShell>
+    );
 }
-
-export default App;
