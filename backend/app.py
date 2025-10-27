@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 import json
 from pathlib import Path
-from nlp_pipeline import analyze_post
+from backend.nlp_pipeline import analyze_post
 
 # Add this import
 from flask_cors import CORS
